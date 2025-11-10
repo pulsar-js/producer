@@ -1,5 +1,5 @@
 // import { EventEmitter } from 'node:events'
-import send from './index.js'
+import publish from './index.js'
 
 const [connection_string, ...args] = process.argv.slice(2)
 const message = args.join(' ')
@@ -10,7 +10,7 @@ const message = args.join(' ')
 //   console.log('all done', info)
 // })
 
-const messageId = await send(connection_string, message, {
+const messageId = await publish(connection_string, message, {
   timeout: 30,
   name: 'test-producer',
   authorization: {

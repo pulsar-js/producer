@@ -110,7 +110,7 @@ export class Publisher {
    * @param {EventEmitter} bus - The bus to send the message to.
    * @returns {Promise<string>} A promise that resolves with the message ID when successful.
    */
-  async send (message, options = {}, bus) {
+  async publish (message, options = {}, bus) {
     return new Promise((done, reject) => {
       // Serialize JSON & other non-string primitives
       switch (typeof message) {
@@ -350,14 +350,14 @@ export class Publisher {
 }
 
 /**
- * Sends a message to a Pulsar topic.
+ * Publishes a message to a Pulsar topic.
  * @param {string} connection_string - The Pulsar connection string.
  * @param {string|Object} message - The message to send. Accepts string or object. Objects must be serializable to JSON.
  * @param {MessageOptions} opts - The options for sending the message.
  * @param {EventEmitter} bus - The bus to use for sending the message.
  * @returns {Promise<string>} A promise that resolves with the message ID.
  */
-export default async function send(connection_string, message, opts = {}, bus) {
+export default async function publish(connection_string, message, opts = {}, bus) {
   const publisher = new Publisher(connection_string, {
     timeout: opts.timeout ?? 30,
     name: opts.name ?? 'manual-producer',
@@ -408,5 +408,5 @@ export default async function send(connection_string, message, opts = {}, bus) {
   delete opts.authorization
   delete opts.auth
 
-  return publisher.send(message, opts, bus)
+  return publisher.publish(message, opts, bus)
 }
