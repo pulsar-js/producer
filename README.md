@@ -21,7 +21,7 @@ The pre-built binary was designed specifically for producing messages (not consu
 ```js
 import publish from '@pulsar-js/producer'
 
-await publish('pulsar://my_server:5678/persistent/namespace/topic', message/*, options*/)
+await publish('pulsar://my_server:5678/persistent/namespace/topic', "message"/*, options*/)
 ```
 
 The connection string accepts `pulsar://` or `pulsar+ssl://` protocols. The syntax is `protocol://server:port/[non-]persistent/namespace/topic`
