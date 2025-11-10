@@ -23,8 +23,8 @@ jobs:
           cache: 'npm'
       - name: Publish to npm
         run: |
-        npm i
-        npm publish  --provenance --ignore-scripts
+          npm i
+          npm publish  --provenance --ignore-scripts
 
   create-release:
     runs-on: ubuntu-latest
