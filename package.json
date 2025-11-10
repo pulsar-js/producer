@@ -1,6 +1,6 @@
 {
   "name": "@pulsar-js/producer",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.2",
   "description": "Apache Pulsar producer with pre-built binaries for Node.js",
   "main": "index.js",
   "type": "module",
