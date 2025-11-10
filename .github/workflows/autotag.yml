@@ -22,7 +22,7 @@ jobs:
       - name: Extract version
         id: get_version
         run: |
-          VERSION=$(jq -r '.version' package.json.json)
+          VERSION=$(jq -r '.version' package.json)
           echo "Manifest Version: $VERSION"
           echo "manifest_version=$VERSION" >> $GITHUB_ENV
         shell: bash
