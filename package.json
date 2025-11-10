@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/pulsar-js/producer.git"
+    "url": "git+https://github.com/pulsar-js/producer.git"
   },
   "scripts": {
     "postinstall": "node scripts/postinstall.js"
@@ -24,7 +24,7 @@
     "pulsar",
     "produce"
   ],
-  "bin": {
+  "metadata": {
     "version": "1.0.0",
     "name": "pulsar_producer"
   },

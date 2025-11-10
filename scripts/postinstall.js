@@ -8,8 +8,8 @@ import https from 'https'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const BIN_PATH = join(__dirname, '..', 'bin', 'pulsar-publish' + (process.platform === 'win32' ? '.exe' : ''))
-const { bin } = pkg
-const { version, name: app } = bin
+const { metadata } = pkg
+const { version, name: app } = metadata
 const { arch, platform } = process
 const asset = {
   darwin: {
