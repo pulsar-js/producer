@@ -23,7 +23,6 @@ jobs:
           cache: 'npm'
       - name: Publish to npm
         run: |
-          npm i
           npm publish  --provenance --ignore-scripts
 
   create-release:
