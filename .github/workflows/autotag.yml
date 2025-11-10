@@ -5,7 +5,7 @@ on:
     branches:
       - 'main'
     paths:
-      - 'src/manifest.json'
+      - 'package.json'
 
 jobs:
   autotag:
