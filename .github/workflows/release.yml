@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '20.x'
           always-auth: true
-          auth-type: 'oidc'
+          registry-url: 'https://registry.npmjs.org/'
       - name: Publish to npm
         run: |
           npm publish  --provenance --ignore-scripts
