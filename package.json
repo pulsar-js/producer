@@ -1,0 +1,34 @@
+{
+  "name": "@pulsar-js/producer",
+  "version": "1.0.0-beta.1",
+  "description": "Apache Pulsar producer with pre-built binaries for Node.js",
+  "main": "index.js",
+  "type": "module",
+  "files": [
+    "scripts",
+    "index.js"
+  ],
+  "exports": {
+    ".": "./index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pulsar-js/producer.git"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "license": "MIT",
+  "keywords": [
+    "apache",
+    "pulsar",
+    "produce"
+  ],
+  "bin": {
+    "version": "1.0.0",
+    "name": "pulsar_producer"
+  },
+  "engines":  {
+    "node": ">=18.0"
+  }
+}

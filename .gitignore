@@ -1,0 +1,7 @@
+.*
+!.github
+!.gitignore
+node_modules/
+**/*.jwt
+bin
+**/bin
