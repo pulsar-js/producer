@@ -4,7 +4,7 @@
 
 **Isn't there already an official module for this?**
 
-Yes, but it's _hard to install_. The [official pulsar node client](https://www.npmjs.com/package/pulsar-client) is a wrapper around the Pulsar C++ library. Using this in Node.js means your system must have a compiler and node-gyp. This can be an unnecessary barrier in environments that can't extra have build tools installed.
+Yes, but it's _hard to install_. The [official pulsar node client](https://www.npmjs.com/package/pulsar-client) is a wrapper around the Pulsar C++ library. Using this in Node.js means your system must have a compiler (used by node-gyp). This can be an unnecessary barrier in environments that can't have build extra tools installed.
 
 **How does `@pulsar-js/producer` simplify my life?**
 
