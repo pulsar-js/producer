@@ -1,0 +1,58 @@
+name: AutoTag Version Change
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'src/manifest.json'
+
+jobs:
+  autotag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # Fetch all history and tags to compare against
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: get_version
+        run: |
+          VERSION=$(jq -r '.version' package.json.json)
+          echo "Manifest Version: $VERSION"
+          echo "manifest_version=$VERSION" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          TAG_NAME="v${{ env.manifest_version }}"
+          echo "Checking for existing tag: $TAG_NAME"
+          # Check if the tag exists locally after fetch-depth: 0
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME already exists. No new tag will be created."
+            echo "tag_exists=true" >> $GITHUB_ENV
+          else
+            echo "Tag $TAG_NAME does not exist. A new tag will be created."
+            echo "tag_exists=false" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Create new tag
+        if: env.tag_exists == 'false'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GH_ACCESS_TOKEN }}
+          script: |
+            const tag = `v${process.env.manifest_version}`;
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${tag}`,
+              sha: context.sha
+            });
+            console.log(`Created new tag: ${tag}`);
