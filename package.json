@@ -1,6 +1,6 @@
 {
   "name": "@pulsar-js/producer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Apache Pulsar message producer with pre-built binaries for Node.js",
   "main": "index.js",
   "type": "module",
