@@ -103,6 +103,146 @@ export class Publisher {
     this.#options = options
   }
 
+  #command (message, options = {}) {
+    const command = [this.#connection_string, `${message.replace(/\"/g, '\\"')}`]
+
+    // Serialize JSON & other non-string primitives
+    switch (typeof message) {
+      case 'object':
+        message = JSON.stringify(message)
+        break
+      case 'string':
+        break
+      default:
+        message = message.toString()
+        break
+    }
+
+    // Apply message flags
+    for (const [key, value] of Object.entries(options)) {
+      switch (key.trim().toLowerCase()) {
+        case 'key':
+          command.unshift('--key', `"${value}"`)
+          break
+        case 'orderingkey':
+          command.unshift('--ordering-key', `"${value}"`)
+          break
+        case 'eventtime':
+          command.unshift('--event-time', `"${value}"`)
+          break
+        case 'replicationclusters':
+          for (const cluster of value) {
+            command.unshift('--replication-cluster', `"${cluster}"`)
+          }
+          break
+        case 'disablereplication':
+          command.unshift('--disable-replication')
+          break
+        case 'sequenceid':
+          command.unshift('--sequence-id', `"${value}"`)
+          break
+        case 'deliverafter':
+          command.unshift('--deliver-after', `"${value}"`)
+          break
+        case 'deliverat':
+          command.unshift('--deliver-at', `"${value}"`)
+          break
+        case 'properties':
+          for (const [k, v] of Object.entries(value)) {
+            command.unshift('--property', `${k}="${v}"`)
+          }
+          break
+      }
+    }
+
+    // Apply producer flags
+    for (const [key, value] of Object.entries(this.#properties)) {
+      command.unshift('--producer-property', `${key}=${value}`)
+    }
+    command.unshift('--timeout', `${this.#timeout}`)
+    command.unshift('--name', `"${this.#name}"`)
+
+    // Apply authorization flags
+    if (this.#authorization) {
+      switch (this.#authorization.type) {
+        case 'oidc':
+          if (this.#authorization.allowUnverified) {
+            command.unshift('--allow-unverified')
+          }
+          this.#authorization.token && command.unshift('--jwt', `${this.#authorization.token}`)
+          break
+        case 'mtls':
+          this.#authorization.certPath && command.unshift('--mtls-cert', `${this.#authorization.certPath}`)
+          this.#authorization.keyPath && command.unshift('--mtls-key', `${this.#authorization.keyPath}`)
+          this.#authorization.caCert && command.unshift('--mtls-ca-cert', `${this.#authorization.caCert}`)
+          break
+        case 'oauth2':
+          this.#authorization.issuer && command.unshift('--oauth2-issuer', `${this.#authorization.issuer}`)
+          this.#authorization.privateKey && command.unshift('--oauth2-private-key', `${this.#authorization.privateKey}`)
+          this.#authorization.audience && command.unshift('--oauth2-audience', `${this.#authorization.audience}`)
+          this.#authorization.clientID && command.unshift('--oauth2-client-id', `${this.#authorization.clientID}`)
+          break
+        case 'basic':
+          this.#authorization.username && command.unshift('--username', `${this.#authorization.username}`)
+          this.#authorization.password && command.unshift('--password', `${this.#authorization.password}`)
+          break
+        case 'athenz':
+          this.#authorization.url && command.unshift('--athenz', `${this.#authorization.url}`)
+          this.#authorization.domain && command.unshift('--athenz-domain', `${this.#authorization.domain}`)
+          this.#authorization.tenant && command.unshift('--athenz-tenant', `${this.#authorization.tenant}`)
+          this.#authorization.service && command.unshift('--athenz-service', `${this.#authorization.service}`)
+          this.#authorization.privateKey && command.unshift('--athenz-private-key', `${this.#authorization.privateKey}`)
+          this.#authorization.keyId && command.unshift('--athenz-key-id', `${this.#authorization.keyId}`)
+          this.#authorization.caCert && command.unshift('--athenz-ca-cert', `${this.#authorization.caCert}`)
+          if (this.#authorization.proxy) {
+            command.unshift('--athenz-proxy', `${this.#authorization.proxy}`)
+          }
+          break
+      }
+    }
+
+    return command
+  }
+
+  #process (child, bus, setResponse, reject, test = false) {
+    return function process(data) {
+      const entry = JSON.parse(data.toString())
+      const { msg, time } = entry
+      delete entry.msg
+
+      if (entry.error) {
+        child.kill()
+        if (test) {
+          setResponse(false)
+          return
+        }
+        const err = new Error(entry.error)
+        if (bus) {
+          bus.emit('error', err)
+        }
+        return reject(err)
+      }
+
+      if (bus) {
+        entry.time = new Date(entry.time)
+        bus.emit(msg, entry)
+      }
+
+      delete entry.time
+      delete entry.level
+
+      if (msg === 'done') {
+        setResponse(entry.message_id)
+        return
+      } else if (msg === 'test') {
+        setResponse(entry.success)
+        return
+      }
+
+      console.log(`${time} ${msg}${(Object.keys(entry).length > 0 ? ': ' + JSON.stringify(entry) : '')}`)
+    }
+  }
+
   /**
    * Sends a message to the specified topic.
    * @param {string|Object} message - The message to send. Accepts string or object. Objects must be serializable to JSON.
@@ -112,140 +252,24 @@ export class Publisher {
    */
   async publish (message, options = {}, bus) {
     return new Promise((done, reject) => {
-      // Serialize JSON & other non-string primitives
-      switch (typeof message) {
-        case 'object':
-          message = JSON.stringify(message)
-          break
-        case 'string':
-          break
-        default:
-          message = message.toString()
-          break
-      }
+      const command = this.#command(message, options)
 
-      const command = [this.#connection_string, `${message.replace(/\"/g, '\\"')}`]
-
-      // Apply message flags
-      for (const [key, value] of Object.entries(options)) {
-        switch (key.trim().toLowerCase()) {
-          case 'key':
-            command.unshift('--key', `"${value}"`)
-            break
-          case 'orderingkey':
-            command.unshift('--ordering-key', `"${value}"`)
-            break
-          case 'eventtime':
-            command.unshift('--event-time', `"${value}"`)
-            break
-          case 'replicationclusters':
-            for (const cluster of value) {
-              command.unshift('--replication-cluster', `"${cluster}"`)
-            }
-            break
-          case 'disablereplication':
-            command.unshift('--disable-replication')
-            break
-          case 'sequenceid':
-            command.unshift('--sequence-id', `"${value}"`)
-            break
-          case 'deliverafter':
-            command.unshift('--deliver-after', `"${value}"`)
-            break
-          case 'deliverat':
-            command.unshift('--deliver-at', `"${value}"`)
-            break
-          case 'properties':
-            for (const [k, v] of Object.entries(value)) {
-              command.unshift('--property', `${k}="${v}"`)
-            }
-            break
-        }
-      }
-
-      // Apply producer flags
-      for (const [key, value] of Object.entries(this.#properties)) {
-        command.unshift('--producer-property', `${key}=${value}`)
-      }
-      command.unshift('--timeout', `${this.#timeout}`)
-      command.unshift('--name', `"${this.#name}"`)
-
-      // Apply authorization flags
-      if (this.#authorization) {
-        switch (this.#authorization.type) {
-          case 'oidc':
-            if (this.#authorization.allowUnverified) {
-              command.unshift('--allow-unverified')
-            }
-            this.#authorization.token && command.unshift('--jwt', `${this.#authorization.token}`)
-            break
-          case 'mtls':
-            this.#authorization.certPath && command.unshift('--mtls-cert', `${this.#authorization.certPath}`)
-            this.#authorization.keyPath && command.unshift('--mtls-key', `${this.#authorization.keyPath}`)
-            this.#authorization.caCert && command.unshift('--mtls-ca-cert', `${this.#authorization.caCert}`)
-            break
-          case 'oauth2':
-            this.#authorization.issuer && command.unshift('--oauth2-issuer', `${this.#authorization.issuer}`)
-            this.#authorization.privateKey && command.unshift('--oauth2-private-key', `${this.#authorization.privateKey}`)
-            this.#authorization.audience && command.unshift('--oauth2-audience', `${this.#authorization.audience}`)
-            this.#authorization.clientID && command.unshift('--oauth2-client-id', `${this.#authorization.clientID}`)
-            break
-          case 'basic':
-            this.#authorization.username && command.unshift('--username', `${this.#authorization.username}`)
-            this.#authorization.password && command.unshift('--password', `${this.#authorization.password}`)
-            break
-          case 'athenz':
-            this.#authorization.url && command.unshift('--athenz', `${this.#authorization.url}`)
-            this.#authorization.domain && command.unshift('--athenz-domain', `${this.#authorization.domain}`)
-            this.#authorization.tenant && command.unshift('--athenz-tenant', `${this.#authorization.tenant}`)
-            this.#authorization.service && command.unshift('--athenz-service', `${this.#authorization.service}`)
-            this.#authorization.privateKey && command.unshift('--athenz-private-key', `${this.#authorization.privateKey}`)
-            this.#authorization.keyId && command.unshift('--athenz-key-id', `${this.#authorization.keyId}`)
-            this.#authorization.caCert && command.unshift('--athenz-ca-cert', `${this.#authorization.caCert}`)
-            if (this.#authorization.proxy) {
-              command.unshift('--athenz-proxy', `${this.#authorization.proxy}`)
-            }
-            break
-        }
+      if (options.test) {
+        command.unshift('--test')
       }
 
       const child = spawn(BIN_PATH, command)
+
       let messageId
-
-      function process(data) {
-        const entry = JSON.parse(data.toString())
-        const { msg, time } = entry
-        delete entry.msg
-
-        if (entry.error) {
-          child.kill()
-          const err = new Error(entry.error)
-          if (bus) {
-            bus.emit('error', err)
-          }
-          return reject(err)
-        }
-
-        if (bus) {
-          entry.time = new Date(entry.time)
-          bus.emit(msg, entry)
-        }
-
-        delete entry.time
-        delete entry.level
-
-        if (msg === 'done') {
-          messageId = entry.message_id
-          return
-        }
-
-        console.log(`${time} ${msg}${(Object.keys(entry).length > 0 ? ': ' + JSON.stringify(entry) : '')}`)
-      }
-
-      child.stdout.on('data', process)
-      child.stderr.on('data', process)
+      const setResponse = id => { messageId = id }
+      child.stdout.on('data', this.#process(child, bus, setResponse, reject, options.test ?? false))
+      child.stderr.on('data', this.#process(child, bus, setResponse, reject, options.test ?? false))
 
       child.on('close', (code) => {
+        if (options.test && messageId !== undefined && messageId !== null) {
+          return done(messageId)
+        }
+
         if (code !== 0) {
           return reject(new Error('pulsar-publish process exited with code ' + code))
         }
@@ -261,6 +285,16 @@ export class Publisher {
         return done(messageId)
       })
     })
+  }
+
+  /**
+   * Tests the connection to the Pulsar cluster.
+   * @param {Object} options - The options for testing the connection.
+   * @param {EventEmitter} bus - The bus to send the message to.
+   */
+  async test(options = {}, bus) {
+    options.test = true
+    return this.publish('_', options, bus)
   }
 
   /**
@@ -349,15 +383,7 @@ export class Publisher {
   }
 }
 
-/**
- * Publishes a message to a Pulsar topic.
- * @param {string} connection_string - The Pulsar connection string.
- * @param {string|Object} message - The message to send. Accepts string or object. Objects must be serializable to JSON.
- * @param {MessageOptions} opts - The options for sending the message.
- * @param {EventEmitter} bus - The bus to use for sending the message.
- * @returns {Promise<string>} A promise that resolves with the message ID.
- */
-export default async function publish(connection_string, message, opts = {}, bus) {
+function getPublisher(connection_string, opts = {}) {
   const publisher = new Publisher(connection_string, {
     timeout: opts.timeout ?? 30,
     name: opts.name ?? 'manual-producer',
@@ -408,5 +434,30 @@ export default async function publish(connection_string, message, opts = {}, bus
   delete opts.authorization
   delete opts.auth
 
-  return publisher.publish(message, opts, bus)
+  return publisher
+}
+
+/**
+ * Publishes a message to a Pulsar topic.
+ * @param {string} connection_string - The Pulsar connection string.
+ * @param {string|Object} message - The message to send. Accepts string or object. Objects must be serializable to JSON.
+ * @param {MessageOptions} opts - The options for sending the message.
+ * @param {EventEmitter} bus - The bus to use for sending the message.
+ * @returns {Promise<string>} A promise that resolves with the message ID.
+ */
+export default async function publish(connection_string, message, opts = {}, bus) {
+  return getPublisher(connection_string, opts).publish(message, opts, bus)
+}
+
+export { publish }
+
+/**
+ * Tests the connection to a Pulsar cluster.
+ * @param {string} connection_string - The Pulsar connection string.
+ * @param {MessageOptions} opts - The options for sending the message.
+ * @param {EventEmitter} bus - The bus to use for sending the message.
+ * @returns {Promise<string>} A promise that resolves with the message ID.
+ */
+export async function test(connection_string, opts = {}, bus) {
+  return getPublisher(connection_string, opts).test(opts, bus)
 }

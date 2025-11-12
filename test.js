@@ -1,5 +1,5 @@
 // import { EventEmitter } from 'node:events'
-import publish from './index.js'
+import { publish, test } from './index.js'
 
 const [connection_string, ...args] = process.argv.slice(2)
 const message = args.join(' ')
@@ -10,13 +10,18 @@ const message = args.join(' ')
 //   console.log('all done', info)
 // })
 
+const authorization = {
+  type: 'oidc',
+  token: './admin.jwt'
+}
+
 const messageId = await publish(connection_string, message, {
   timeout: 30,
   name: 'test-producer',
-  authorization: {
-    type: 'oidc',
-    token: './admin.jwt'
-  }
+  authorization
 }, bus)
+
+// const accessible = await test(connection_string, { authorization }, bus)
+// console.log({accessible})
 
 console.log({messageId})
