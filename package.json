@@ -2,14 +2,19 @@
   "name": "@pulsar-js/producer",
   "version": "1.0.1",
   "description": "Apache Pulsar message producer with pre-built binaries for Node.js",
-  "main": "index.js",
+  "main": "index.cjs",
   "type": "module",
   "files": [
+    "bin",
     "scripts",
-    "index.js"
+    "index.js",
+    "index.cjs"
   ],
   "exports": {
-    ".": "./index.js"
+    ".": {
+      "import": "./index.js",
+      "require": "./index.cjs"
+    }
   },
   "repository": {
     "type": "git",

@@ -1,14 +1,14 @@
-// import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'node:events'
 import { publish, test } from './index.js'
 
 const [connection_string, ...args] = process.argv.slice(2)
 const message = args.join(' ')
 
 // Supports events
-// const bus = new EventEmitter()
-// bus.on('end', (info) => {
-//   console.log('all done', info)
-// })
+const bus = new EventEmitter()
+bus.on('end', (info) => {
+  console.log('all done', info)
+})
 
 const authorization = {
   type: 'oidc',
