@@ -82,7 +82,7 @@ export class Publisher {
   #name
   #options
   #properties = {}
-  #authorization = { type: null }
+  #authentication = { type: null }
 
   /**
    * Creates a new Publisher instance.
@@ -104,101 +104,116 @@ export class Publisher {
   }
 
   #command (message, options = {}) {
-    const command = [this.#connection_string, `${message.replace(/\"/g, '\\"')}`]
+    const command = [this.#connection_string]
 
-    // Serialize JSON & other non-string primitives
-    switch (typeof message) {
-      case 'object':
-        message = JSON.stringify(message)
-        break
-      case 'string':
-        break
-      default:
-        message = message.toString()
-        break
-    }
+    if (!options.test) {
+      command.push(`${message.replace(/\"/g, '\\"')}`)
 
-    // Apply message flags
-    for (const [key, value] of Object.entries(options)) {
-      switch (key.trim().toLowerCase()) {
-        case 'key':
-          command.unshift('--key', `"${value}"`)
+      // Serialize JSON & other non-string primitives
+      switch (typeof message) {
+        case 'object':
+          message = JSON.stringify(message)
           break
-        case 'orderingkey':
-          command.unshift('--ordering-key', `"${value}"`)
+        case 'string':
           break
-        case 'eventtime':
-          command.unshift('--event-time', `"${value}"`)
-          break
-        case 'replicationclusters':
-          for (const cluster of value) {
-            command.unshift('--replication-cluster', `"${cluster}"`)
-          }
-          break
-        case 'disablereplication':
-          command.unshift('--disable-replication')
-          break
-        case 'sequenceid':
-          command.unshift('--sequence-id', `"${value}"`)
-          break
-        case 'deliverafter':
-          command.unshift('--deliver-after', `"${value}"`)
-          break
-        case 'deliverat':
-          command.unshift('--deliver-at', `"${value}"`)
-          break
-        case 'properties':
-          for (const [k, v] of Object.entries(value)) {
-            command.unshift('--property', `${k}="${v}"`)
-          }
+        default:
+          message = message.toString()
           break
       }
+
+      // Apply message flags
+      for (const [key, value] of Object.entries(options)) {
+        switch (key.trim().toLowerCase()) {
+          case 'key':
+            command.unshift('--key', `"${value}"`)
+            break
+          case 'orderingkey':
+            command.unshift('--ordering-key', `"${value}"`)
+            break
+          case 'eventtime':
+            command.unshift('--event-time', `"${value}"`)
+            break
+          case 'replicationclusters':
+            for (const cluster of value) {
+              command.unshift('--replication-cluster', `"${cluster}"`)
+            }
+            break
+          case 'disablereplication':
+            command.unshift('--disable-replication')
+            break
+          case 'sequenceid':
+            command.unshift('--sequence-id', `"${value}"`)
+            break
+          case 'deliverafter':
+            command.unshift('--deliver-after', `"${value}"`)
+            break
+          case 'deliverat':
+            command.unshift('--deliver-at', `"${value}"`)
+            break
+          case 'properties':
+            for (const [k, v] of Object.entries(value)) {
+              command.unshift('--property', `${k}="${v}"`)
+            }
+            break
+          case 'producer-properties':
+            for (const [k, v] of Object.entries(value)) {
+              command.unshift('--producer-property', `${k}="${v}"`)
+            }
+            break
+        }
+      }
+
+      // Apply producer flags
+      for (const [key, value] of Object.entries(this.#properties)) {
+        command.unshift('--producer-property', `${key}=${value}`)
+      }
+      command.unshift('--timeout', `${this.#timeout}`)
+      command.unshift('--name', `"${this.#name}"`)
     }
 
-    // Apply producer flags
-    for (const [key, value] of Object.entries(this.#properties)) {
-      command.unshift('--producer-property', `${key}=${value}`)
-    }
-    command.unshift('--timeout', `${this.#timeout}`)
-    command.unshift('--name', `"${this.#name}"`)
+    this.#authentication = options.authentication ?? options.auth ?? this.#authentication
 
     // Apply authorization flags
-    if (this.#authorization) {
-      switch (this.#authorization.type) {
+    if (this.#authentication) {
+      switch (this.#authentication.type) {
         case 'oidc':
-          if (this.#authorization.allowUnverified) {
+          if (this.#authentication.allowUnverified) {
             command.unshift('--allow-unverified')
           }
-          this.#authorization.token && command.unshift('--jwt', `${this.#authorization.token}`)
+          this.#authentication.token && command.unshift('--jwt', `${this.#authentication.token}`)
           break
         case 'mtls':
-          this.#authorization.certPath && command.unshift('--mtls-cert', `${this.#authorization.certPath}`)
-          this.#authorization.keyPath && command.unshift('--mtls-key', `${this.#authorization.keyPath}`)
-          this.#authorization.caCert && command.unshift('--mtls-ca-cert', `${this.#authorization.caCert}`)
+          this.#authentication.certPath && command.unshift('--mtls-cert', `${this.#authentication.certPath}`)
+          this.#authentication.keyPath && command.unshift('--mtls-key', `${this.#authentication.keyPath}`)
+          this.#authentication.caCert && command.unshift('--mtls-ca-cert', `${this.#authentication.caCert}`)
           break
         case 'oauth2':
-          this.#authorization.issuer && command.unshift('--oauth2-issuer', `${this.#authorization.issuer}`)
-          this.#authorization.privateKey && command.unshift('--oauth2-private-key', `${this.#authorization.privateKey}`)
-          this.#authorization.audience && command.unshift('--oauth2-audience', `${this.#authorization.audience}`)
-          this.#authorization.clientID && command.unshift('--oauth2-client-id', `${this.#authorization.clientID}`)
+          this.#authentication.issuer && command.unshift('--oauth2-issuer', `${this.#authentication.issuer}`)
+          this.#authentication.privateKey && command.unshift('--oauth2-private-key', `${this.#authentication.privateKey}`)
+          this.#authentication.audience && command.unshift('--oauth2-audience', `${this.#authentication.audience}`)
+          this.#authentication.clientID && command.unshift('--oauth2-client-id', `${this.#authentication.clientID}`)
           break
         case 'basic':
-          this.#authorization.username && command.unshift('--username', `${this.#authorization.username}`)
-          this.#authorization.password && command.unshift('--password', `${this.#authorization.password}`)
+          this.#authentication.username && command.unshift('--username', `${this.#authentication.username}`)
+          this.#authentication.password && command.unshift('--password', `${this.#authentication.password}`)
           break
         case 'athenz':
-          this.#authorization.url && command.unshift('--athenz', `${this.#authorization.url}`)
-          this.#authorization.domain && command.unshift('--athenz-domain', `${this.#authorization.domain}`)
-          this.#authorization.tenant && command.unshift('--athenz-tenant', `${this.#authorization.tenant}`)
-          this.#authorization.service && command.unshift('--athenz-service', `${this.#authorization.service}`)
-          this.#authorization.privateKey && command.unshift('--athenz-private-key', `${this.#authorization.privateKey}`)
-          this.#authorization.keyId && command.unshift('--athenz-key-id', `${this.#authorization.keyId}`)
-          this.#authorization.caCert && command.unshift('--athenz-ca-cert', `${this.#authorization.caCert}`)
-          if (this.#authorization.proxy) {
-            command.unshift('--athenz-proxy', `${this.#authorization.proxy}`)
+          this.#authentication.url && command.unshift('--athenz', `${this.#authentication.url}`)
+          this.#authentication.domain && command.unshift('--athenz-domain', `${this.#authentication.domain}`)
+          this.#authentication.tenant && command.unshift('--athenz-tenant', `${this.#authentication.tenant}`)
+          this.#authentication.service && command.unshift('--athenz-service', `${this.#authentication.service}`)
+          this.#authentication.privateKey && command.unshift('--athenz-private-key', `${this.#authentication.privateKey}`)
+          this.#authentication.keyId && command.unshift('--athenz-key-id', `${this.#authentication.keyId}`)
+          this.#authentication.caCert && command.unshift('--athenz-ca-cert', `${this.#authentication.caCert}`)
+          if (this.#authentication.proxy) {
+            command.unshift('--athenz-proxy', `${this.#authentication.proxy}`)
           }
           break
       }
+    }
+
+    if (options.test) {
+      command.unshift('--test')
     }
 
     return command
@@ -253,11 +268,6 @@ export class Publisher {
   async publish (message, options = {}, bus) {
     return new Promise((done, reject) => {
       const command = this.#command(message, options)
-
-      if (options.test) {
-        command.unshift('--test')
-      }
-
       const child = spawn(BIN_PATH, command)
 
       let messageId
@@ -312,7 +322,7 @@ export class Publisher {
       token = readFileSync(resolve(__dirname, token))
     }
 
-    this.#authorization = {
+    this.#authentication = {
       type: 'oidc',
       token,
       allowUnverified
@@ -327,7 +337,7 @@ export class Publisher {
    * @param {string} caCert - The path to the CA certificate file.
    */
   setmTLS (certPath, keyPath, caCert) {
-    this.#authorization = {
+    this.#authentication = {
       certPath,
       keyPath,
       caCert
@@ -340,7 +350,7 @@ export class Publisher {
    * @param {OAuth2Config} config - The OAuth2 configuration.
    */
   setOauth2 (config = {}) {
-    this.#authorization = {
+    this.#authentication = {
       type: 'oauth2',
       issuer: config.issuer,
       privateKey: config.privateKey,
@@ -356,7 +366,7 @@ export class Publisher {
    * @param {string} password - The password for basic authentication.
    */
   setBasicAuth (username, password) {
-    this.#authorization = {
+    this.#authentication = {
       type: 'basic',
       username,
       password
@@ -369,7 +379,7 @@ export class Publisher {
    * @param {AthenzConfig} config
    */
   setAthenz (config = {}) {
-    this.#authorization = {
+    this.#authentication = {
       type: 'athenz',
       domain: config.domain,
       tenant: config.tenant,
