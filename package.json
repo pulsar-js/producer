@@ -5,7 +5,6 @@
   "main": "index.cjs",
   "type": "module",
   "files": [
-    "bin",
     "scripts",
     "index.js",
     "index.cjs"
