@@ -1,27 +1,31 @@
-import { EventEmitter } from 'node:events'
-import { publish, test } from './index.js'
+const { platform, arch } = process
 
-const [connection_string, ...args] = process.argv.slice(2)
-const message = args.join(' ')
+console.log({ platform, arch })
 
-// Supports events
-const bus = new EventEmitter()
-bus.on('end', (info) => {
-  console.log('all done', info)
-})
+// import { EventEmitter } from 'node:events'
+// import { publish, test } from './index.js'
 
-const authorization = {
-  type: 'oidc',
-  token: './admin.jwt'
-}
+// const [connection_string, ...args] = process.argv.slice(2)
+// const message = args.join(' ')
 
-const messageId = await publish(connection_string, message, {
-  timeout: 30,
-  name: 'test-producer',
-  authorization
-}, bus)
+// // Supports events
+// const bus = new EventEmitter()
+// bus.on('end', (info) => {
+//   console.log('all done', info)
+// })
 
-// const accessible = await test(connection_string, { authorization }, bus)
-// console.log({accessible})
+// const authorization = {
+//   type: 'oidc',
+//   token: './admin.jwt'
+// }
 
-console.log({messageId})
+// const messageId = await publish(connection_string, message, {
+//   timeout: 30,
+//   name: 'test-producer',
+//   authorization
+// }, bus)
+
+// // const accessible = await test(connection_string, { authorization }, bus)
+// // console.log({accessible})
+
+// console.log({messageId})
