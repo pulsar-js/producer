@@ -19,7 +19,7 @@ async function exists (path) {
 }
 
 if (!(await exists(BIN_PATH))) {
-  console.warn('pulsar-publish binary not found, attempting to download...')
+  console.log(`${BIN_PATH} not found, attempting to download...`)
 
   // Attempt to download the required binary
   const { run } = await import('./scripts/binary.js')
@@ -31,7 +31,7 @@ if (!(await exists(BIN_PATH))) {
     throw new Error('the module is not installed correctly (binary not found at ' + BIN_PATH + ')')
   }
 
-  console.log('pulsar-publish binary downloaded successfully')
+  console.log(`${BIN_PATH} downloaded successfully`)
 }
 
 /**
