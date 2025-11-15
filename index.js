@@ -18,20 +18,22 @@ async function exists (path) {
   }
 }
 
-if (!(await exists(BIN_PATH))) {
-  console.log(`${BIN_PATH} not found, attempting to download...`)
-
-  // Attempt to download the required binary
-  const { run } = await import('./scripts/binary.js')
-  await run().catch(e => {
-    throw new Error('the module is not installed correctly(binary not found at ' + BIN_PATH + ') - failed to auto-download binary during module import: ' + e.message)
-  })
-
+async function assureBinaryExists() {
   if (!(await exists(BIN_PATH))) {
-    throw new Error('the module is not installed correctly (binary not found at ' + BIN_PATH + ')')
-  }
+    console.log(`${BIN_PATH} not found, attempting to download...`)
 
-  console.log(`${BIN_PATH} downloaded successfully`)
+    // Attempt to download the required binary
+    const { run } = await import('./scripts/binary.js')
+    await run().catch(e => {
+      throw new Error('the module is not installed correctly(binary not found at ' + BIN_PATH + ') - failed to auto-download binary during module import: ' + e.message)
+    })
+
+    if (!(await exists(BIN_PATH))) {
+      throw new Error('the module is not installed correctly (binary not found at ' + BIN_PATH + ')')
+    }
+
+    console.log(`${BIN_PATH} downloaded successfully`)
+  }
 }
 
 /**
@@ -278,6 +280,8 @@ export class Publisher {
    * @returns {Promise<string>} A promise that resolves with the message ID when successful.
    */
   async publish (message, options = {}, bus) {
+    await assureBinaryExists()
+
     return new Promise((done, reject) => {
       const command = this.#command(message, options)
       const child = spawn(BIN_PATH, command)
